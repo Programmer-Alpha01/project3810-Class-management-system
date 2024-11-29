@@ -38,37 +38,8 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(methodOverride('_method'));
 
 // Utility functions
-async function checkuser(db, username){
-    const user = await db.collection(collection_user).findOne({ name: username});
-  	if (user) {
-    		console.log("User found with the provided username");
-    		return true;
-  	} else {
-    		console.log('No User found with the provided username');
-    		return false;
-  }
-}
-
-async function checkemail(db, email){
-    const user = await db.collection(collection_user).findOne({ email: email});
-  	if (user) {
-    		console.log("User found with the provided email");
-    		return true;
-  	} else {
-    		console.log('No user found with the provided email.');
-    		return false;
-  }
-}
-
-async function checkpassword(db, password){
-    const user = await db.collection(collection_user).findOne({ password: password});
-    if (user) {
-    		console.log("User found with the provided password");
-    		return true;
-  	} else {
-    		console.log('No user found with the provided password.');
-    		return false;
-  }
+async function findUserByField(db, field, value) {
+    return await db.collection(collection_user).findOne({ [field]: value });
 }
 
 function ensureAuthenticated(req, res, next) {
@@ -122,117 +93,88 @@ app.get('/reset', (req, res) => {
 });
 
 // User Authentication
-app.post('/logining', async function (req, res) {
-    const email = req.body.email;
-    const password = req.body.password;
-    
+app.post('/logining', async (req, res) => {
+    const { email, password } = req.body;
     try {
         await client.connect();
         const db = client.db(dbName);
-        if (await checkemail(db, email) && await checkpassword(db, password)) {
+        const user = await findUserByField(db, 'email', email);
+
+        if (user && user.password === password) {
             req.session.user = email; // Store user email in session
             res.redirect('/home');
         } else {
-            res.send("Invalid email or password");
+            res.status(401).render('login', { error: 'Invalid email or password' });
         }
     } catch (err) {
         console.error(err);
-        res.render('login', { error: 'An error occurred. Please try again.' });
+        res.status(500).render('login', { error: 'An error occurred. Please try again.' });
     }
 });
 
-// Login route
-app.post('/signuping', async function (req, res) {
-    const username = req.body.username;
-    const email = req.body.email;
-    const password = req.body.password;
-    const password_comfirm = req.body.password_comfirm;
-    var error=0;
-	
-    console.log(username);
-    console.log(email);
-    console.log(password);
-    console.log(password_comfirm);
-    try {
-    	// connecting to database
-    	await client.connect();
-    	const db = client.db(dbName);
-        
-        // check if not same name exist in database
-    	if (await checkuser(db, username)) {
-    	    var error =error+1;
-            res.send("The username is already in use, please use another email address");
-        }
-        // check if not same email exist in database
-    	if (await checkemail(db, email)) {
-            var error =error+1;
-            res.send("The email address is already in use, please use another email address");
-        } 
-        
-        // check if not same password exist in database
-    	if (await checkpassword(db, password)) {
-            var error =error+1;
-            res.send("The password is already in use, please use another password");
-        }       
-        
-        // check password same to comfirm password 
-    	if (password!=password_comfirm){
-    	    var error =error+1;
-    	    res.send("Password and comfirmation password not match !");
-    	}
+app.post('/signuping', async (req, res) => {
+    const { username, email, password, password_comfirm } = req.body;
 
-        if (username!=null && email!=null && password!=null && error==0){
-            console.log("Creating a account");
-            
-            // get the current user count
-            const userCount = await db.collection(collection_user).countDocuments();
-        
-            // create a new user document
-            const user = {userID: userCount + 1,
-                    password: password,
-                    email: email,
-                    name: username,
-                    
-            };
-        
-            // insert the new user document
-            await db.collection(collection_user).insertOne(user);
-            console.log("Sign up complete");
-            res.redirect('/home');
+    if (password !== password_comfirm) {
+        return res.status(400).render('signup', { error: "Passwords don't match" });
+    }
+
+    try {
+        await client.connect();
+        const db = client.db(dbName);
+
+        const usernameExists = await findUserByField(db, 'name', username);
+        const emailExists = await findUserByField(db, 'email', email);
+
+        if (usernameExists || emailExists) {
+            return res.status(400).render('signup', { error: 'Username or email already in use' });
         }
+
+        const userCount = await db.collection(collection_user).countDocuments();
+        const newUser = {
+            userID: userCount + 1,
+            name: username,
+            email,
+            password
+        };
+
+        await db.collection(collection_user).insertOne(newUser);
+        res.redirect('/login');
     } catch (err) {
         console.error(err);
-        res.render('signup', { error: 'An error occurred. Please try again.' });
+        res.status(500).render('signup', { error: 'An error occurred. Please try again.' });
     }
 });
 
 // Password Reset
-app.post('/reset', async function(req, res) {
-    const username = req.body.username;
-    const email = req.body.email;
-    const newPassword = req.body.newPassword;
-    
+app.post('/reset', async (req, res) => {
+    const { username, email, newPassword } = req.body;
+
     try {
         await client.connect();
         const db = client.db(dbName);
-        
-        const user = await db.collection(collection_user).findOne({ name: username, email: email });
-        
-        if (user) {
-        	
-        	if(await checkpassword(db, newPassword)){
-        		res.send("This password is already in used, please use anohter passowrd");
-        	}else{
-        		await db.collection(collection_user).updateOne({ name: username, email: email }, { $set: { password: newPassword } });
-			console.log("Password reset and updated successfully");
-            		res.redirect('/login');
-        	}
-        } else {
-            res.send("User not found. Please check your username and email");
+        const user = await db.collection(collection_user).findOne({ name: username, email });
+	const password = await findUserByField(db, 'password', newPassword);
+	
+	// User not exist
+        if (!user) {
+            return res.status(404).send("User not found. Please check your username and email.");
         }
+	
+	// User exist
+        if (password) {
+            return res.status(400).send("This password is already in use. Please choose another password.");
+        }
+
+        await db.collection(collection_user).updateOne(
+            { name: username, email },
+            { $set: { password: newPassword } }
+        );
+
+        res.redirect('/login');
     } catch (err) {
         console.error(err);
-        res.send("An error occurred while resetting and updating the password. Please try again");
+        res.status(500).send("An error occurred while resetting the password. Please try again.");
     }
 });
 
