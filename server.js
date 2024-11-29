@@ -61,7 +61,7 @@ passport.use(new LocalStrategy(
                 return done(null, false, { message: 'Incorrect password' });
             }
 
-            console.log('User authenticated successfully:', user);
+            console.log('User authenticated successfully:', AuthUser);
             return done(null, user);
         } catch (err) {
             console.error('Error in LocalStrategy:', err);
@@ -70,9 +70,9 @@ passport.use(new LocalStrategy(
     }
 ));
 // Serialize and Deserialize User
-passport.serializeUser((user, done) => {
-    console.log('Serializing user:', user);
-    done(null, user._id);
+passport.serializeUser((AuthUser, done) => {
+    console.log('Serializing user:', AuthUserr);
+    done(null, AuthUser._id);
 });
 
 passport.deserializeUser(async (id, done) => {
@@ -89,15 +89,15 @@ passport.deserializeUser(async (id, done) => {
 });
 
 // Middleware to ensure authentication
-ensureAuthenticated = (req, res, next) => {
+const ensureAuthenticated = (req, res, next) => {
     console.log('User authenticated?', req.isAuthenticated());
-    if (req.isAuthenticated()) {
-        return next();
+    if (!req.isAuthenticated()) {
+        return res.redirect('/login');
     }
-    res.redirect('/login');
+    next();
 };
 
-checkLoggedIn = (req, res, next) => {
+const checkLoggedIn = (req, res, next) => {
     if (req.isAuthenticated()) { 
         return res.redirect("/home")
     }
@@ -130,26 +130,27 @@ app.get('/login',checkLoggedIn, (req, res) => {
     res.status(200).render('login', { title: "Login" });
 });
 
-app.post('/login', (req, res, next) => {
-    passport.authenticate('local', (err, user, info) => {
-        if (err) {
-            console.error('Error during authentication:', err);
-            return next(err);
+app.post('/login', async (req, res, next) => {
+    const { email, password } = req.body;
+    try {
+        await client.connect();
+        const db = client.db(dbName);
+        const user = await findUserByField(db, 'email', email);
+        console.log("Logining");
+        if (user && user.password === password) {
+            req.session.user = email; // Store user email in session
+            console.log("Login success");
+            res.redirect('/home');
+        } else {
+            console.log("Invalid email or password");
+            res.status(401).render('login', { error: 'Invalid email or password' });
         }
-        if (!user) {
-            console.log('Authentication failed:', info);
-            return res.redirect('/login');
-        }
-        req.logIn(user, (err) => {
-            if (err) {
-                console.error('Error logging in:', err);
-                return next(err);
-            }
-            console.log('Authentication successful:', user);
-            return res.redirect('/home');
-        });
-    })(req, res, next);
+    } catch (err) {
+        console.error(err);
+        res.status(500).render('login', { error: 'An error occurred. Please try again.' });
+    }
 });
+
 
 app.get('/reset', (req, res) => {
     res.status(200).render('reset', { title: "Reset Password" });
