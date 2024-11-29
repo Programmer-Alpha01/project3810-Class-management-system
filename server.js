@@ -117,39 +117,35 @@ app.get('/login', (req, res) => {
     res.status(200).render('login', { title: "Login" });
 });
 
-app.get('/logout', (req, res) => {
-    // Destroy the session
-    req.session.destroy(err => {
-        if (err) {
-            console.error('Error destroying session:', err);
-            return res.status(500).send('Error logging out.');
-        }
-        Authentication = false;
-        // Clear any cookies related to the session
-        res.clearCookie('connect.sid'); // Default cookie name for express-session
-        res.redirect('/'); // Redirect to index page
-    });
-});
-
-app.get('/signup', (req, res) => {
-    res.status(200).render('signup', { title: "Create an Account" });
-});
-
-app.get('/reset', (req, res) => {
-    res.status(200).render('reset', { title: "Reset Password" });
-});
-
-// User Authentication
 app.post('/login', passport.authenticate('local', {
     successRedirect: '/home',
     failureRedirect: '/login',
     failureFlash: false // Enable this if you want to display error messages
 }));
 
-app.post('/signuping', async (req, res) => {
-    const { username, email, password, password_comfirm } = req.body;
+app.get('/logout', (req, res) => {
+    req.logout(err => {
+        if (err) {
+            console.error('Error logging out:', err);
+            return res.status(500).send('Error logging out.');
+        }
+        res.redirect('/');
+    });
+});
 
-    if (password !== password_comfirm) {
+app.get('/reset', (req, res) => {
+    res.status(200).render('reset', { title: "Reset Password" });
+});
+
+//sign up
+app.get('/signup', (req, res) => {
+    res.status(200).render('signup', { title: "Create an Account" });
+});
+
+app.post('/signup', async (req, res) => {
+    const { username, email, password, password_confirm } = req.body;
+
+    if (password !== password_confirm) {
         return res.status(400).render('signup', { error: "Passwords don't match" });
     }
 
@@ -157,19 +153,21 @@ app.post('/signuping', async (req, res) => {
         await client.connect();
         const db = client.db(dbName);
 
-        const usernameExists = await findUserByField(db, 'name', username);
-        const emailExists = await findUserByField(db, 'email', email);
+        const usernameExists = await db.collection(collection_user).findOne({ name: username });
+        const emailExists = await db.collection(collection_user).findOne({ email });
 
         if (usernameExists || emailExists) {
             return res.status(400).render('signup', { error: 'Username or email already in use' });
         }
+
+        const hashedPassword = await bcrypt.hash(password, 10); // Hash the password
 
         const userCount = await db.collection(collection_user).countDocuments();
         const newUser = {
             userID: userCount + 1,
             name: username,
             email,
-            password
+            password: hashedPassword
         };
 
         await db.collection(collection_user).insertOne(newUser);
@@ -188,21 +186,16 @@ app.post('/reset', async (req, res) => {
         await client.connect();
         const db = client.db(dbName);
         const user = await db.collection(collection_user).findOne({ name: username, email });
-	const password = await findUserByField(db, 'password', newPassword);
-	
-	// User not exist
+
         if (!user) {
             return res.status(404).send("User not found. Please check your username and email.");
         }
-	
-	// User exist
-        if (password) {
-            return res.status(400).send("This password is already in use. Please choose another password.");
-        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10); // Hash the new password
 
         await db.collection(collection_user).updateOne(
             { name: username, email },
-            { $set: { password: newPassword } }
+            { $set: { password: hashedPassword } }
         );
 
         res.redirect('/login');
