@@ -23,11 +23,11 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(cookieParser());
 app.use(session({
-    secret: 'abc123!@#', // Replace with a strong secret key
+    secret: 'abc123!@#',
     resave: false,
     saveUninitialized: true,
     cookie: {
-        secure: false, // Set to true only in production with HTTPS
+        secure: false, // Set to true only in production
         httpOnly: true,
         sameSite: 'strict',
         maxAge: 1 * 60 * 60 * 1000 // 1 hour
@@ -48,43 +48,53 @@ passport.use(new LocalStrategy(
         try {
             await client.connect();
             const db = client.db(dbName);
-            const user = await db.collection(collection_user).findOne({email});
+            const user = await db.collection(collection_user).findOne({ email });
 
-            if (!user) {return done(null, false, { message: 'No user with that email' });}
+            if (!user) {
+                console.log('No user with that email:', email);
+                return done(null, false, { message: 'No user with that email' });
+            }
 
             const passwordMatch = await bcrypt.compare(password, user.password);
-            if (!passwordMatch) {return done(null, false, { message: 'Incorrect password' });}
+            if (!passwordMatch) {
+                console.log('Incorrect password for user:', email);
+                return done(null, false, { message: 'Incorrect password' });
+            }
 
+            console.log('User authenticated successfully:', user);
             return done(null, user);
         } catch (err) {
+            console.error('Error in LocalStrategy:', err);
             return done(err);
         }
     }
 ));
-
 // Serialize and Deserialize User
 passport.serializeUser((user, done) => {
-    console.log('Serializing user:', user._id);
+    console.log('Serializing user:', user);
     done(null, user._id);
 });
 
 passport.deserializeUser(async (id, done) => {
     console.log('Deserializing user ID:', id);
     try {
-        await client.connect();
         const db = client.db(dbName);
         const user = await db.collection(collection_user).findOne({ _id: new ObjectId(id) });
+        console.log('User after deserialization:', user);
         done(null, user);
-    } catch (err) {
-        done(err, null);
+    } catch (error) {
+        console.error('Error during deserialization:', error);
+        done(error, null);
     }
 });
 
 // Middleware to ensure authentication
 ensureAuthenticated = (req, res, next) => {
-    console.log('User authenticated:', req.isAuthenticated());
-    if (req.isAuthenticated()) { return next(); }
-    res.redirect("/login");
+    console.log('User authenticated?', req.isAuthenticated());
+    if (req.isAuthenticated()) {
+        return next();
+    }
+    res.redirect('/login');
 };
 
 checkLoggedIn = (req, res, next) => {
@@ -119,12 +129,6 @@ app.get('/home',ensureAuthenticated ,(req,res) => {
 app.get('/login',checkLoggedIn, (req, res) => {
     res.status(200).render('login', { title: "Login" });
 });
-
-app.post('/login', passport.authenticate('local', {
-    successRedirect: '/home',
-    failureRedirect: '/login',
-    failureFlash: false // Enable this if you want to display error messages
-}));
 
 app.post('/login', (req, res, next) => {
     passport.authenticate('local', (err, user, info) => {
