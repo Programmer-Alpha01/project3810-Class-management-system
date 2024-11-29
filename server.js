@@ -198,7 +198,7 @@ app.post('/signup', async (req, res) => {
             userID: userCount + 1,
             name: username,
             email,
-            password: hashedPassword =
+            password: hashedPassword
         };
 
         await db.collection(collection_user).insertOne(newUser);
