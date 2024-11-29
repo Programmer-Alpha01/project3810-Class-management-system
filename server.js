@@ -117,11 +117,26 @@ app.get('/login', (req, res) => {
     res.status(200).render('login', { title: "Login" });
 });
 
-app.post('/login', passport.authenticate('local', {
-    successRedirect: '/home',
-    failureRedirect: '/login',
-    failureFlash: false // Enable this if you want to display error messages
-}));
+app.post('/login', (req, res, next) => {
+    passport.authenticate('local', (err, user, info) => {
+        if (err) {
+            console.error('Error during authentication:', err);
+            return next(err);
+        }
+        if (!user) {
+            console.log('Authentication failed:', info.message); // Debugging info
+            return res.redirect('/login'); // Redirect back to login on failure
+        }
+        req.logIn(user, (err) => {
+            if (err) {
+                console.error('Error logging in:', err);
+                return next(err);
+            }
+            console.log('Authentication successful! User:', user);
+            return res.redirect('/home'); // Redirect to home on success
+        });
+    })(req, res, next);
+});
 
 app.get('/logout', (req, res) => {
     req.logout(err => {
@@ -153,19 +168,21 @@ app.post('/signup', async (req, res) => {
         await client.connect();
         const db = client.db(dbName);
 
-        const usernameExists = await findUserByField(db, 'name', username);
-        const emailExists = await findUserByField(db, 'email', email);
+        const usernameExists = await db.collection(collection_user).findOne({ name: username });
+        const emailExists = await db.collection(collection_user).findOne({ email });
 
         if (usernameExists || emailExists) {
             return res.status(400).render('signup', { error: 'Username or email already in use' });
         }
+
+        const hashedPassword = await bcrypt.hash(password, 10); // Hash the password
 
         const userCount = await db.collection(collection_user).countDocuments();
         const newUser = {
             userID: userCount + 1,
             name: username,
             email,
-            password
+            password: hashedPassword // Save hashed password
         };
 
         await db.collection(collection_user).insertOne(newUser);
