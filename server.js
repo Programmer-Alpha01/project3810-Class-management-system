@@ -25,7 +25,7 @@ app.use(cookieParser());
 app.use(session({
     secret: 'abc123!@#',
     resave: false,
-    saveUninitialized: true,
+    saveUninitialized: false,
     cookie: {
         secure: false, // Set to true only in production
         httpOnly: true,
@@ -41,10 +41,39 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(methodOverride('_method'));
 
+passport.use(new LocalStrategy(
+    { usernameField: 'email' }, // Use 'email' instead of 'username'
+    async (email, password, done) => {
+        try {
+            await client.connect();
+            const db = client.db(dbName);
+            const user = await db.collection(collection_user).findOne({ email });
+
+            if (!user) {
+                console.log('No user with that email');
+                return done(null, false, { message: 'No user with that email' });
+            }
+
+            // Compare hashed password
+            const passwordMatch = await bcrypt.compare(password, user.password);
+            if (!passwordMatch) {
+                console.log('Incorrect password');
+                return done(null, false, { message: 'Incorrect password' });
+            }
+
+            console.log('User authenticated successfully:', user);
+            return done(null, user); // Pass the user to passport
+        } catch (err) {
+            console.error('Error in LocalStrategy:', err);
+            return done(err);
+        }
+    }
+));
+
 // Serialize and Deserialize User
-passport.serializeUser((AuthUser, done) => {
-    console.log('Serializing user:', AuthUserr);
-    done(null, AuthUser._id);
+passport.serializeUser((user, done) => {
+    console.log('Serializing user:', user._id);
+    done(null, user._id); // Use the MongoDB ObjectId
 });
 
 passport.deserializeUser(async (id, done) => {
@@ -53,7 +82,7 @@ passport.deserializeUser(async (id, done) => {
         const db = client.db(dbName);
         const user = await db.collection(collection_user).findOne({ _id: new ObjectId(id) });
         console.log('User after deserialization:', user);
-        done(null, user);
+        done(null, user); // Attach the user object to `req.user`
     } catch (error) {
         console.error('Error during deserialization:', error);
         done(error, null);
@@ -62,11 +91,11 @@ passport.deserializeUser(async (id, done) => {
 
 // Middleware to ensure authentication
 const ensureAuthenticated = (req, res, next) => {
-    console.log('User authenticated?', req.isAuthenticated());
-    if (!req.isAuthenticated()) {
-        return res.redirect('/login');
+    console.log('User authenticated?', req.isAuthenticated()); 
+    if (req.isAuthenticated()) {
+        return next();
     }
-    next();
+    res.redirect('/login');
 };
 
 const checkLoggedIn = (req, res, next) => {
@@ -102,25 +131,28 @@ app.get('/login',checkLoggedIn, (req, res) => {
     res.status(200).render('login', { title: "Login" });
 });
 
-app.post('/login', async (req, res, next) => {
-    const { email, password } = req.body;
-    try {
-        await client.connect();
-        const db = client.db(dbName);
-        const user = await findUserByField(db, 'email', email);
-        console.log("Logining");
-        if (user && user.password === password) {
-            req.session.user = email; // Store user email in session
-            console.log("Login success");
-            res.redirect('/home');
-        } else {
-            console.log("Invalid email or password");
-            res.status(401).render('login', { error: 'Invalid email or password' });
+app.post('/login', (req, res, next) => {
+    passport.authenticate('local', (err, user, info) => {
+        if (err) {
+            console.error('Error during authentication:', err);
+            return next(err);
         }
-    } catch (err) {
-        console.error(err);
-        res.status(500).render('login', { error: 'An error occurred. Please try again.' });
-    }
+
+        if (!user) {
+            console.log('Authentication failed:', info);
+            return res.status(401).render('login', { error: 'Invalid email or password' });
+        }
+
+        req.logIn(user, (err) => {
+            if (err) {
+                console.error('Error logging in:', err);
+                return next(err);
+            }
+
+            console.log('Authentication successful:', user);
+            res.redirect('/home'); // Redirect to home on successful login
+        });
+    })(req, res, next);
 });
 
 
