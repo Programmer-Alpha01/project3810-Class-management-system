@@ -16,6 +16,7 @@
     "ejs": "*",
     "passport": "^0.7.0",
     "passport-local": "^1.x.x",
+    "bcrypt": "^5.x.x",
     "express": "*",
     "express-session": "^1.18.1",
     "jsonwebtoken": "^9.0.2",
