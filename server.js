@@ -43,22 +43,17 @@ app.use(methodOverride('_method'));
 
 // Passport Configuration
 passport.use(new LocalStrategy(
-    { usernameField: 'email' }, // Use email as the username field
+    { usernameField: 'email' }, 
     async (email, password, done) => {
         try {
             await client.connect();
             const db = client.db(dbName);
             const user = await db.collection(collection_user).findOne({ email });
 
-            if (!user) {
-                return done(null, false, { message: 'No user with that email' });
-            }
+            if (!user) {return done(null, false, { message: 'No user with that email' });}
 
-            // Compare hashed password
             const passwordMatch = await bcrypt.compare(password, user.password);
-            if (!passwordMatch) {
-                return done(null, false, { message: 'Incorrect password' });
-            }
+            if (!passwordMatch) {return done(null, false, { message: 'Incorrect password' });}
 
             return done(null, user);
         } catch (err) {
