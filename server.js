@@ -15,6 +15,7 @@ const dbName = 'class_management_system';
 const uri = "mongodb+srv://user123:user123@cluster0.nagcq.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 const client = new MongoClient(uri);
 const collection_user = 'user';
+const Authentication = false;
 
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -33,10 +34,17 @@ app.use(session({
 }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(methodOverride('_method'));
+
+async function AuthenticationCheck(db, field, next) {
+    if (Authentication==true) {
+        return next();
+    }
+    res.redirect('/login');
+}
+
 
 // Utility functions
 async function findUserByField(db, field, value) {
@@ -56,7 +64,7 @@ app.get('/contact', (req, res) => {
     res.status(200).render('contact', { title: "Contact Us" });
 });
 
-app.get('/home', (req, res) => {
+app.get('/home', (req,AuthenticationCheck,res) => {
     res.status(200).render('home', { title: "Home page" });
 });
 
@@ -71,7 +79,7 @@ app.get('/logout', (req, res) => {
             console.error('Error destroying session:', err);
             return res.status(500).send('Error logging out.');
         }
-
+        Authentication = false;
         // Clear any cookies related to the session
         res.clearCookie('connect.sid'); // Default cookie name for express-session
         res.redirect('/'); // Redirect to index page
@@ -97,6 +105,7 @@ app.post('/logining', async (req, res) => {
         if (user && user.password === password) {
             req.session.user = email; // Store user email in session
             console.log("Login success");
+            Authentication = true;
             res.redirect('/home');
         } else {
             console.log("Invalid email or password");
@@ -176,7 +185,7 @@ app.post('/reset', async (req, res) => {
 
 // API Endpoints
 // Route to fetch and display editable student data
-app.get('/edit', async (req, res) => {
+app.get('/edit',AuthenticationCheck, async (req, res) => {
     try {
         await client.connect();
         const db = client.db(dbName);
@@ -198,7 +207,7 @@ app.get('/edit', async (req, res) => {
     }
 });
 
-app.post('/edit/saveAll',async (req, res) => {
+app.post('/edit/saveAll',AuthenticationCheck,async (req, res) => {
     const studentUpdates = req.body.students;  
 
     if (!studentUpdates || typeof studentUpdates !== 'object') {
@@ -250,7 +259,7 @@ app.post('/edit/saveAll',async (req, res) => {
 });
 
 // Route to handle adding a new student
-app.post('/edit/add',async (req, res) => {
+app.post('/edit/add',AuthenticationCheck,async (req, res) => {
     try {
         const { ClassID, SID, 'First name': firstName, 'Last name': lastName, Gender, age, 'Home address': homeAddress, 'phone address': phone, Credit } = req.body;
 
@@ -283,7 +292,7 @@ app.post('/edit/add',async (req, res) => {
 });
 
 // Route to delete a student record
-app.delete('/edit/delete/:id',async (req, res) => {
+app.delete('/edit/delete/:id',AuthenticationCheck,async (req, res) => {
     try {
         const studentId = req.params.id;
         await client.connect();
@@ -297,7 +306,7 @@ app.delete('/edit/delete/:id',async (req, res) => {
     }
 });
 
-app.put('/edit/update/:id', (req, res) => {
+app.put('/edit/update/:id',AuthenticationCheck, (req, res) => {
     const studentId = req.params.id; // Get the student ID from the URL
     const updatedData = req.body; // Get the updated student data from the request body
 
@@ -321,7 +330,7 @@ app.put('/edit/update/:id', (req, res) => {
 
 
 // Add a GET route for login
-app.get('/home',(req, res) => {
+app.get('/home',AuthenticationCheck,(req, res) => {
     if (req.session.user) {
         res.status(200).render('home', { title: "Home page", user: req.session.user });
 
