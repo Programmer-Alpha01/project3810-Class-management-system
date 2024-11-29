@@ -41,34 +41,6 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(methodOverride('_method'));
 
-// Passport Configuration
-passport.use(new LocalStrategy(
-    { usernameField: 'email' }, 
-    async (email, password, done) => {
-        try {
-            await client.connect();
-            const db = client.db(dbName);
-            const user = await db.collection(collection_user).findOne({ email });
-
-            if (!user) {
-                console.log('No user with that email:', email);
-                return done(null, false, { message: 'No user with that email' });
-            }
-
-            const passwordMatch = await bcrypt.compare(password, user.password);
-            if (!passwordMatch) {
-                console.log('Incorrect password for user:', email);
-                return done(null, false, { message: 'Incorrect password' });
-            }
-
-            console.log('User authenticated successfully:', AuthUser);
-            return done(null, user);
-        } catch (err) {
-            console.error('Error in LocalStrategy:', err);
-            return done(err);
-        }
-    }
-));
 // Serialize and Deserialize User
 passport.serializeUser((AuthUser, done) => {
     console.log('Serializing user:', AuthUserr);
