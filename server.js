@@ -5,7 +5,9 @@ const cookieParser = require('cookie-parser');
 const session = require('express-session');
 const methodOverride = require('method-override');
 const { MongoClient, ObjectId } = require('mongodb');
-const { getSystemErrorMap } = require('util');
+const passport = require('passport');
+const LocalStrategy = require('passport-local').Strategy;
+const bcrypt = require('bcrypt');
 
 const app = express();
 const port = 3000;
@@ -15,7 +17,6 @@ const dbName = 'class_management_system';
 const uri = "mongodb+srv://user123:user123@cluster0.nagcq.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 const client = new MongoClient(uri);
 const collection_user = 'user';
-const Authentication = false;
 
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -32,19 +33,63 @@ app.use(session({
         maxAge: 1 * 60 * 60 * 1000 // 1 hour
     }
 }));
+app.use(passport.initialize());
+app.use(passport.session());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(methodOverride('_method'));
 
-async function AuthenticationCheck(db, field, next) {
-    if (Authentication==true) {
+// Passport Configuration
+passport.use(new LocalStrategy(
+    { usernameField: 'email' }, // Use email as the username field
+    async (email, password, done) => {
+        try {
+            await client.connect();
+            const db = client.db(dbName);
+            const user = await db.collection(collection_user).findOne({ email });
+
+            if (!user) {
+                return done(null, false, { message: 'No user with that email' });
+            }
+
+            // Compare hashed password
+            const passwordMatch = await bcrypt.compare(password, user.password);
+            if (!passwordMatch) {
+                return done(null, false, { message: 'Incorrect password' });
+            }
+
+            return done(null, user);
+        } catch (err) {
+            return done(err);
+        }
+    }
+));
+
+// Serialize and Deserialize User
+passport.serializeUser((user, done) => {
+    done(null, user._id);
+});
+
+passport.deserializeUser(async (id, done) => {
+    try {
+        await client.connect();
+        const db = client.db(dbName);
+        const user = await db.collection(collection_user).findOne({ _id: new ObjectId(id) });
+        done(null, user);
+    } catch (err) {
+        done(err, null);
+    }
+});
+
+// Middleware to ensure authentication
+function ensureAuthenticated(req, res, next) {
+    if (req.isAuthenticated()) {
         return next();
     }
     res.redirect('/login');
 }
-
 
 // Utility functions
 async function findUserByField(db, field, value) {
@@ -95,27 +140,11 @@ app.get('/reset', (req, res) => {
 });
 
 // User Authentication
-app.post('/logining', async (req, res) => {
-    const { email, password } = req.body;
-    try {
-        await client.connect();
-        const db = client.db(dbName);
-        const user = await findUserByField(db, 'email', email);
-        console.log("Logining");
-        if (user && user.password === password) {
-            req.session.user = email; // Store user email in session
-            console.log("Login success");
-            Authentication = true;
-            res.redirect('/home');
-        } else {
-            console.log("Invalid email or password");
-            res.status(401).render('login', { error: 'Invalid email or password' });
-        }
-    } catch (err) {
-        console.error(err);
-        res.status(500).render('login', { error: 'An error occurred. Please try again.' });
-    }
-});
+app.post('/login', passport.authenticate('local', {
+    successRedirect: '/home',
+    failureRedirect: '/login',
+    failureFlash: false // Enable this if you want to display error messages
+}));
 
 app.post('/signuping', async (req, res) => {
     const { username, email, password, password_comfirm } = req.body;
