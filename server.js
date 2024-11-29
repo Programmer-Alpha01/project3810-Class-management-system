@@ -25,7 +25,7 @@ app.use(cookieParser());
 app.use(session({
     secret: 'abc123!@#', // Replace with a strong secret key
     resave: false,
-    saveUninitialized: false,
+    saveUninitialized: true,
     cookie: {
         secure: process.env.NODE_ENV === 'production', // Use HTTPS in production
         httpOnly: true, // Prevent client-side access to cookies
@@ -84,11 +84,16 @@ passport.deserializeUser(async (id, done) => {
 });
 
 // Middleware to ensure authentication
-function ensureAuthenticated(req, res, next) {
-    if (req.isAuthenticated()) {
-        return next();
+ensureAuthenticated = (req, res, next) => {
+    if (req.isAuthenticated()) { return next() }
+    res.redirect("/login")
+  }
+
+checkLoggedIn = (req, res, next) => {
+    if (req.isAuthenticated()) { 
+        return res.redirect("/home")
     }
-    res.redirect('/login');
+    next()
 }
 
 // Utility functions
@@ -113,30 +118,15 @@ app.get('/home',ensureAuthenticated ,(req,res) => {
     res.status(200).render('home', { title: "Home page" });
 });
 
-app.get('/login', (req, res) => {
+app.get('/login',checkLoggedIn, (req, res) => {
     res.status(200).render('login', { title: "Login" });
 });
 
-app.post('/login', (req, res, next) => {
-    passport.authenticate('local', (err, user, info) => {
-        if (err) {
-            console.error('Error during authentication:', err);
-            return next(err);
-        }
-        if (!user) {
-            console.log('Authentication failed:', info.message); // Debugging info
-            return res.redirect('/login'); // Redirect back to login on failure
-        }
-        req.logIn(user, (err) => {
-            if (err) {
-                console.error('Error logging in:', err);
-                return next(err);
-            }
-            console.log('Authentication successful! User:', user);
-            return res.redirect('/home'); // Redirect to home on success
-        });
-    })(req, res, next);
-});
+app.post('/login', passport.authenticate('local', {
+    successRedirect: '/home',
+    failureRedirect: '/login',
+    failureFlash: false // Enable this if you want to display error messages
+}));
 
 app.get('/logout', (req, res) => {
     req.logout(err => {
