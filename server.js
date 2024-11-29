@@ -70,20 +70,6 @@ app.get('/login', (req, res) => {
     res.status(200).render('login', { title: "Login" });
 });
 
-app.get('/logout', (req, res) => {
-    // Destroy the session
-    req.session.destroy(err => {
-        if (err) {
-            console.error('Error destroying session:', err);
-            return res.status(500).send('Error logging out.');
-        }
-
-        // Clear any cookies related to the session
-        res.clearCookie('connect.sid'); // Default cookie name for express-session
-        res.redirect('/'); // Redirect to index page
-    });
-});
-
 app.get('/signup', (req, res) => {
     res.status(200).render('signup', { title: "Create an Account" });
 });
