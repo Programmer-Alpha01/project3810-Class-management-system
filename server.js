@@ -5,6 +5,7 @@ const cookieParser = require('cookie-parser');
 const session = require('express-session');
 const methodOverride = require('method-override');
 const { MongoClient, ObjectId } = require('mongodb');
+const { getSystemErrorMap } = require('util');
 
 const app = express();
 const port = 3000;
@@ -99,11 +100,13 @@ app.post('/logining', async (req, res) => {
         await client.connect();
         const db = client.db(dbName);
         const user = await findUserByField(db, 'email', email);
-
+        console.log("Logining");
         if (user && user.password === password) {
             req.session.user = email; // Store user email in session
+            console.log("Login success");
             res.redirect('/home');
         } else {
+            console.log("Login fail");
             res.status(401).render('login', { error: 'Invalid email or password' });
         }
     } catch (err) {
