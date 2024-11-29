@@ -27,7 +27,7 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: false, // Set to true only in production
+        secure: false,
         httpOnly: true,
         sameSite: 'strict',
         maxAge: 1 * 60 * 60 * 1000 // 1 hour
@@ -42,7 +42,7 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(methodOverride('_method'));
 
 passport.use(new LocalStrategy(
-    { usernameField: 'email' }, // Use 'email' instead of 'username'
+    { usernameField: 'email' },
     async (email, password, done) => {
         try {
             await client.connect();
@@ -54,7 +54,6 @@ passport.use(new LocalStrategy(
                 return done(null, false, { message: 'No user with that email' });
             }
 
-            // Compare hashed password
             const passwordMatch = await bcrypt.compare(password, user.password);
             if (!passwordMatch) {
                 console.log('Incorrect password');
@@ -62,7 +61,7 @@ passport.use(new LocalStrategy(
             }
 
             console.log('User authenticated successfully:', user);
-            return done(null, user); // Pass the user to passport
+            return done(null, user);
         } catch (err) {
             console.error('Error in LocalStrategy:', err);
             return done(err);
@@ -73,7 +72,7 @@ passport.use(new LocalStrategy(
 // Serialize and Deserialize User
 passport.serializeUser((user, done) => {
     console.log('Serializing user:', user._id);
-    done(null, user._id); // Use the MongoDB ObjectId
+    done(null, user._id); 
 });
 
 passport.deserializeUser(async (id, done) => {
@@ -82,14 +81,14 @@ passport.deserializeUser(async (id, done) => {
         const db = client.db(dbName);
         const user = await db.collection(collection_user).findOne({ _id: new ObjectId(id) });
         console.log('User after deserialization:', user);
-        done(null, user); // Attach the user object to `req.user`
+        done(null, user); 
     } catch (error) {
         console.error('Error during deserialization:', error);
         done(error, null);
     }
 });
 
-// Middleware to ensure authentication
+// Authentication ensure
 const ensureAuthenticated = (req, res, next) => {
     console.log('User authenticated?', req.isAuthenticated()); 
     if (req.isAuthenticated()) {
@@ -150,7 +149,7 @@ app.post('/login', (req, res, next) => {
             }
 
             console.log('Authentication successful:', user);
-            res.redirect('/home'); // Redirect to home on successful login
+            res.redirect('/home'); 
         });
     })(req, res, next);
 });
@@ -192,14 +191,14 @@ app.post('/signup', async (req, res) => {
             return res.status(400).render('signup', { error: 'Username or email already in use' });
         }
 
-        const hashedPassword = await bcrypt.hash(password, 10); // Hash the password
+        const hashedPassword = await bcrypt.hash(password, 10); 
 
         const userCount = await db.collection(collection_user).countDocuments();
         const newUser = {
             userID: userCount + 1,
             name: username,
             email,
-            password: hashedPassword // Save hashed password
+            password: hashedPassword =
         };
 
         await db.collection(collection_user).insertOne(newUser);

@@ -6,6 +6,8 @@
 
 **Project overview** The Class Management System is a web-based platform designed to assist schools and educational institutions in managing their classes and students more efficiently. It provides user authentication with role-based access (e.g., teacher, other users) and includes functionalities for managing student information such as reading, adding, editing, deleting, and updating records.
 
+User cannot access system wihtou passport and the user password was encrypted to ensure the security requirements.
+
 
 **Group Info:**  
 - Group Number: 19
@@ -44,16 +46,20 @@
 #### **`package.json`**
 - This file manages the project's dependencies and scripts.  
 - **Dependencies List:**
-  - `bcryptjs`: For password hashing and validation.
-  - `body-parser`: For parsing incoming request bodies.
-  - `cookie-parser`: For parsing cookies.
-  - `ejs`: For rendering dynamic HTML templates.
-  - `express`: For building the web application and API.
-  - `express-session`: For session management.
-  - `jsonwebtoken`: For creating and verifying JSON Web Tokens (JWTs).
-  - `method-override`: For overriding HTTP methods.
-  - `mongodb` & `mongoose`: For connecting to and managing MongoDB.
 
+- `bcryptjs`: ^2.4.3 - A library to help you hash passwords.
+- `body-parser`: ^1.20.3 - Node.js body parsing middleware.
+- `cookie-parser`: ^1.4.7 - Parse HTTP request cookies.
+- `ejs`: (version not specified) - Embedded JavaScript templating.
+- `passport`: ^0.7.0 - Simple, unobtrusive authentication for Node.js.
+- `passport`-local: ^1.x.x - Local username and password authentication strategy for Passport.
+- `bcrypt`: ^5.x.x - A library to help you hash passwords.
+- `express`: (version not specified) - Fast, unopinionated, minimalist web framework for Node.js.
+- `express-session`: ^1.18.1 - Simple session middleware for Express.
+- `jsonwebtoken`: ^9.0.2 - JSON Web Token implementation (JWT).
+- `method-override`: ^3.0.0 - Lets you use HTTP verbs such as PUT or DELETE in places where the client doesn't support it.
+- `mongodb`: ^6.10.0 - The official MongoDB driver for Node.js.
+- `mongoose`: ^8.8.0 - Elegant MongoDB object modeling for Node.js.
 ---
 
 ### **Folders**
@@ -97,14 +103,17 @@
        - **Password:** `password123`
    - Click the "Submit" button to log in.
    - Redirected to the home page, if the credentials are valid
+   - If the account is logged in and the window is closed without clicking the logout button. Users do not need to log in again after clicking the login button
 
 2. **Logout:**
    - Click the "Log out" button in the navigation bar or home page to end the session.
+   - After user click logout button, user cannot access to the editor directly. User have to login the account again.
 
 3. **Sign Up:**
    - Navigate to the `/signup` page.
    - Fill in the registration form (username, email, password, confirm password).
    - Click "Sign up" to register a new account.
+   - The user password will be encrypted
 
 4. **Password Reset:**
    - Navigate to the `/reset` page.
@@ -164,15 +173,15 @@
    **Authentication**
    - **Login:**
      ```bash
-     curl -X POST https://project3810-group19.onrender.com/logining \
+     curl -X POST https://project3810-group19.onrender.com/login \
      -H "Content-Type: application/json" \
-     -d '{"email": "user@example.com", "password": "password123"}'
+     -d '{"email": "test@live.hkmu.edu.hk", "password": "testing"}'
      ```
    - **Creata accound:**
      ```bash
-     curl -X POST https://project3810-group19.onrender.com/signuping \
+     curl -X POST https://project3810-group19.onrender.com/signup \
      -H "Content-Type: application/json" \
-     --d'{"username": "testing123", "email": "testuser@example.com", "password": "testing123","password_comfirm":"testing123"}'
+     --d'{"username": "tester", "email": "tester@example.com", "password": "tester","password_comfirm":"tester"}'
      ```
    - **Reset password:**
      ```bash
@@ -212,11 +221,17 @@
 3. **Response Format:**
    **Authentication**
    - **Login:**
-    ```text
-    Redirects to /home.
+    ```json
+    User authenticated successfully: {
+      _id: new ObjectId('674997431f8c8d11531098e2'),
+      userID: 3,
+      name: 'testing',
+      email: 'test@live.hkmu.edu.hk',
+      password: '$2b$10$fqcXfMUCkbRMdAhneucykOhOMHAQEWAniYSTlyeoX5RI614F5nGYu'
+    }
      ```
 
-   - **Signup (POST /signuping)**
+   - **Signup (POST /signup)**
     ```text
     Redirects to /login.
     ```
