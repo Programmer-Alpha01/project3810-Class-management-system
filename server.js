@@ -109,7 +109,7 @@ app.get('/contact', (req, res) => {
     res.status(200).render('contact', { title: "Contact Us" });
 });
 
-app.get('/home',AuthenticationCheck (req,res) => {
+app.get('/home',ensureAuthenticated (req,res) => {
     res.status(200).render('home', { title: "Home page" });
 });
 
@@ -207,7 +207,7 @@ app.post('/reset', async (req, res) => {
 
 // API Endpoints
 // Route to fetch and display editable student data
-app.get('/edit',AuthenticationCheck, async (req, res) => {
+app.get('/edit',ensureAuthenticated, async (req, res) => {
     try {
         await client.connect();
         const db = client.db(dbName);
@@ -229,7 +229,7 @@ app.get('/edit',AuthenticationCheck, async (req, res) => {
     }
 });
 
-app.post('/edit/saveAll',AuthenticationCheck,async (req, res) => {
+app.post('/edit/saveAll',ensureAuthenticated,async (req, res) => {
     const studentUpdates = req.body.students;  
 
     if (!studentUpdates || typeof studentUpdates !== 'object') {
@@ -281,7 +281,7 @@ app.post('/edit/saveAll',AuthenticationCheck,async (req, res) => {
 });
 
 // Route to handle adding a new student
-app.post('/edit/add',AuthenticationCheck,async (req, res) => {
+app.post('/edit/add',ensureAuthenticated,async (req, res) => {
     try {
         const { ClassID, SID, 'First name': firstName, 'Last name': lastName, Gender, age, 'Home address': homeAddress, 'phone address': phone, Credit } = req.body;
 
@@ -314,7 +314,7 @@ app.post('/edit/add',AuthenticationCheck,async (req, res) => {
 });
 
 // Route to delete a student record
-app.delete('/edit/delete/:id',AuthenticationCheck,async (req, res) => {
+app.delete('/edit/delete/:id',ensureAuthenticated,async (req, res) => {
     try {
         const studentId = req.params.id;
         await client.connect();
@@ -328,7 +328,7 @@ app.delete('/edit/delete/:id',AuthenticationCheck,async (req, res) => {
     }
 });
 
-app.put('/edit/update/:id',AuthenticationCheck, (req, res) => {
+app.put('/edit/update/:id',ensureAuthenticated, (req, res) => {
     const studentId = req.params.id; // Get the student ID from the URL
     const updatedData = req.body; // Get the updated student data from the request body
 
@@ -352,7 +352,7 @@ app.put('/edit/update/:id',AuthenticationCheck, (req, res) => {
 
 
 // Add a GET route for login
-app.get('/home',AuthenticationCheck,(req, res) => {
+app.get('/home',ensureAuthenticated,(req, res) => {
     if (req.session.user) {
         res.status(200).render('home', { title: "Home page", user: req.session.user });
 
