@@ -155,6 +155,15 @@ app.post('/login', (req, res, next) => {
     })(req, res, next);
 });
 
+app.get('/logout', (req, res) => {
+    req.logout(err => {
+        if (err) {
+            console.error('Error logging out:', err);
+            return res.status(500).send('Error logging out.');
+        }
+        res.redirect('/');
+    });
+});
 
 app.get('/reset', (req, res) => {
     res.status(200).render('reset', { title: "Reset Password" });
