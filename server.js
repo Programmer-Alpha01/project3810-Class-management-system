@@ -64,7 +64,7 @@ app.get('/contact', (req, res) => {
 });
 
 app.get('/home', ensureAuthenticated, (req, res) => {
-    res.status(200).render('home', { title: "Home page", user: req.session.user });
+    res.status(200).render('home', { title: "Home page" });
 });
 
 app.get('/login', (req, res) => {
