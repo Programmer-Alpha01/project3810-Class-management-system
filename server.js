@@ -109,7 +109,7 @@ app.get('/contact', (req, res) => {
     res.status(200).render('contact', { title: "Contact Us" });
 });
 
-app.get('/home',ensureAuthenticated (req,res) => {
+app.get('/home',ensureAuthenticated ,(req,res) => {
     res.status(200).render('home', { title: "Home page" });
 });
 
