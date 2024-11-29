@@ -103,8 +103,10 @@ app.post('/logining', async (req, res) => {
         console.log("Logining");
         if (user && user.password === password) {
             req.session.user = email; // Store user email in session
+            console.log("Login success");
             res.redirect('/home');
         } else {
+            console.log("Invalid email or password");
             res.status(401).render('login', { error: 'Invalid email or password' });
         }
     } catch (err) {
