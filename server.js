@@ -27,9 +27,9 @@ app.use(session({
     resave: false,
     saveUninitialized: true,
     cookie: {
-        secure: process.env.NODE_ENV === 'production', // Use HTTPS in production
-        httpOnly: true, // Prevent client-side access to cookies
-        sameSite: 'strict', // Prevent CSRF
+        secure: false, // Set to true only in production with HTTPS
+        httpOnly: true,
+        sameSite: 'strict',
         maxAge: 1 * 60 * 60 * 1000 // 1 hour
     }
 }));
@@ -48,7 +48,7 @@ passport.use(new LocalStrategy(
         try {
             await client.connect();
             const db = client.db(dbName);
-            const user = await db.collection(collection_user).findOne({ email });
+            const user = await db.collection(collection_user).findOne({email});
 
             if (!user) {return done(null, false, { message: 'No user with that email' });}
 
@@ -64,10 +64,12 @@ passport.use(new LocalStrategy(
 
 // Serialize and Deserialize User
 passport.serializeUser((user, done) => {
+    console.log('Serializing user:', user._id);
     done(null, user._id);
 });
 
 passport.deserializeUser(async (id, done) => {
+    console.log('Deserializing user ID:', id);
     try {
         await client.connect();
         const db = client.db(dbName);
@@ -80,9 +82,10 @@ passport.deserializeUser(async (id, done) => {
 
 // Middleware to ensure authentication
 ensureAuthenticated = (req, res, next) => {
-    if (req.isAuthenticated()) { return next() }
-    res.redirect("/login")
-  }
+    console.log('User authenticated:', req.isAuthenticated());
+    if (req.isAuthenticated()) { return next(); }
+    res.redirect("/login");
+};
 
 checkLoggedIn = (req, res, next) => {
     if (req.isAuthenticated()) { 
@@ -123,14 +126,25 @@ app.post('/login', passport.authenticate('local', {
     failureFlash: false // Enable this if you want to display error messages
 }));
 
-app.get('/logout', (req, res) => {
-    req.logout(err => {
+app.post('/login', (req, res, next) => {
+    passport.authenticate('local', (err, user, info) => {
         if (err) {
-            console.error('Error logging out:', err);
-            return res.status(500).send('Error logging out.');
+            console.error('Error during authentication:', err);
+            return next(err);
         }
-        res.redirect('/');
-    });
+        if (!user) {
+            console.log('Authentication failed:', info);
+            return res.redirect('/login');
+        }
+        req.logIn(user, (err) => {
+            if (err) {
+                console.error('Error logging in:', err);
+                return next(err);
+            }
+            console.log('Authentication successful:', user);
+            return res.redirect('/home');
+        });
+    })(req, res, next);
 });
 
 app.get('/reset', (req, res) => {
