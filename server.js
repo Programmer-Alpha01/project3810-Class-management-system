@@ -143,9 +143,9 @@ app.get('/signup', (req, res) => {
 });
 
 app.post('/signup', async (req, res) => {
-    const { username, email, password, password_confirm } = req.body;
+    const { username, email, password, password_comfirm } = req.body;
 
-    if (password !== password_confirm) {
+    if (password !== password_comfirm) {
         return res.status(400).render('signup', { error: "Passwords don't match" });
     }
 
@@ -153,21 +153,19 @@ app.post('/signup', async (req, res) => {
         await client.connect();
         const db = client.db(dbName);
 
-        const usernameExists = await db.collection(collection_user).findOne({ name: username });
-        const emailExists = await db.collection(collection_user).findOne({ email });
+        const usernameExists = await findUserByField(db, 'name', username);
+        const emailExists = await findUserByField(db, 'email', email);
 
         if (usernameExists || emailExists) {
             return res.status(400).render('signup', { error: 'Username or email already in use' });
         }
-
-        const hashedPassword = await bcrypt.hash(password, 10); // Hash the password
 
         const userCount = await db.collection(collection_user).countDocuments();
         const newUser = {
             userID: userCount + 1,
             name: username,
             email,
-            password: hashedPassword
+            password
         };
 
         await db.collection(collection_user).insertOne(newUser);
@@ -186,16 +184,21 @@ app.post('/reset', async (req, res) => {
         await client.connect();
         const db = client.db(dbName);
         const user = await db.collection(collection_user).findOne({ name: username, email });
-
+	const password = await findUserByField(db, 'password', newPassword);
+	
+	// User not exist
         if (!user) {
             return res.status(404).send("User not found. Please check your username and email.");
         }
-
-        const hashedPassword = await bcrypt.hash(newPassword, 10); // Hash the new password
+	
+	// User exist
+        if (password) {
+            return res.status(400).send("This password is already in use. Please choose another password.");
+        }
 
         await db.collection(collection_user).updateOne(
             { name: username, email },
-            { $set: { password: hashedPassword } }
+            { $set: { password: newPassword } }
         );
 
         res.redirect('/login');
@@ -204,6 +207,7 @@ app.post('/reset', async (req, res) => {
         res.status(500).send("An error occurred while resetting the password. Please try again.");
     }
 });
+
 
 // API Endpoints
 // Route to fetch and display editable student data
