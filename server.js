@@ -43,13 +43,6 @@ async function findUserByField(db, field, value) {
     return await db.collection(collection_user).findOne({ [field]: value });
 }
 
-function ensureAuthenticated(req, res, next) {
-    if (req.session.user) {
-        return next();
-    }
-    res.redirect('/login');
-}
-
 // Routes
 app.get('/', (req, res) => {
     res.status(200).render('index', { title: "Home page" });
@@ -183,7 +176,7 @@ app.post('/reset', async (req, res) => {
 
 // API Endpoints
 // Route to fetch and display editable student data
-app.get('/edit', ensureAuthenticated, async (req, res) => {
+app.get('/edit', async (req, res) => {
     try {
         await client.connect();
         const db = client.db(dbName);
@@ -205,7 +198,7 @@ app.get('/edit', ensureAuthenticated, async (req, res) => {
     }
 });
 
-app.post('/edit/saveAll', ensureAuthenticated,async (req, res) => {
+app.post('/edit/saveAll',async (req, res) => {
     const studentUpdates = req.body.students;  
 
     if (!studentUpdates || typeof studentUpdates !== 'object') {
@@ -257,7 +250,7 @@ app.post('/edit/saveAll', ensureAuthenticated,async (req, res) => {
 });
 
 // Route to handle adding a new student
-app.post('/edit/add', ensureAuthenticated,async (req, res) => {
+app.post('/edit/add',async (req, res) => {
     try {
         const { ClassID, SID, 'First name': firstName, 'Last name': lastName, Gender, age, 'Home address': homeAddress, 'phone address': phone, Credit } = req.body;
 
@@ -290,7 +283,7 @@ app.post('/edit/add', ensureAuthenticated,async (req, res) => {
 });
 
 // Route to delete a student record
-app.delete('/edit/delete/:id', ensureAuthenticated,async (req, res) => {
+app.delete('/edit/delete/:id',async (req, res) => {
     try {
         const studentId = req.params.id;
         await client.connect();
@@ -328,7 +321,7 @@ app.put('/edit/update/:id', (req, res) => {
 
 
 // Add a GET route for login
-app.get('/home', ensureAuthenticated,(req, res) => {
+app.get('/home',(req, res) => {
     if (req.session.user) {
         res.status(200).render('home', { title: "Home page", user: req.session.user });
 
