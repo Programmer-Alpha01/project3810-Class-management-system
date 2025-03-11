@@ -8,16 +8,6 @@
 
 User cannot access system wihtou passport and the user password was encrypted to ensure the security requirements.
 
-
-**Group Info:**  
-- Group Number: 19
-- **Team Members:**
-  - Lai Kin Long (13844848) (Team Leader)
-  - Chan Lap Hang (13820629)
-  - Tang Karg Long (13733208)
-  - Leung Sau Ling (13102908)
-  - Wong Ho Yuen (13008570)  
-
 ---
 
 ## 2. Project File Introduction
